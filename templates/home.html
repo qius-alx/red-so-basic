@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Local - Ingeniería de Software y Sistemas</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"></script>
+</head>
+<body>
+    <div class="contenedor">
+        <div class="header">
+            <h1>Chat Local - Red Social</h1>
+            <div class="subtitle">Universidad Nacional de Juliaca - Ingeniería de Software y Sistemas</div>
+        </div>
+        
+        <!-- Contenedor de Login -->
+        <div id="login-container">
+            <h2><i class="fas fa-user-circle"></i> Ingresa al Chat</h2>
+            <div class="input-group">
+                <label><i class="fas fa-user"></i></label>
+                <input type="text" id="username-input" placeholder="Tu nombre" autocomplete="off">
+                <button id="login-btn" class="btn-primary">Unirse</button>
+            </div>
+            <div id="error-mensaje" class="error"></div>
+        </div>
+        
+        <!-- Contenedor del Chat -->
+        <div id="chat-container" class="oculto">
+            <div class="chat-header">
+                <h2><i class="fas fa-comments"></i> Bienvenido, <span id="username-display"></span></h2>
+                <div class="header-actions">
+                    <button class="btn-icon" title="Alternar usuarios (móvil)" id="toggle-usuarios"><i class="fas fa-users"></i></button>
+                    <button class="btn-icon" title="Desconectar" id="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+            
+            <div class="chat-layout">
+                <!-- Panel de Usuarios -->
+                <div class="usuarios-conectados">
+                    <h3>Usuarios en línea</h3>
+                    <ul id="usuarios-lista"></ul>
+                </div>
+                
+                <!-- Panel de Mensajes -->
+                <div class="mensajes-container">
+                    <div id="mensajes" class="mensajes"></div>
+                    
+                    <!-- Controles de Mensajes -->
+                    <div class="mensaje-controles">
+                        <div class="input-mensaje">
+                            <input type="text" id="mensaje-input" placeholder="Escribe un mensaje...">
+                            <button id="enviar-btn" class="btn-send"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                        <div class="input-imagen">
+                            <label for="imagen-input" class="btn-file"><i class="fas fa-image"></i> Seleccionar imagen</label>
+                            <input type="file" id="imagen-input" accept="image/*" style="display: none;">
+                            <button id="enviar-imagen-btn" class="btn-secondary">Enviar Imagen</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
