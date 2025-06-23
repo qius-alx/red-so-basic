@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Foro de Discusión</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .forum-container { max-width: 900px; margin: 20px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .question-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .question-item:last-child { border-bottom: none; }
+        .question-title a { font-size: 1.2em; color: #007bff; text-decoration: none; }
+        .question-title a:hover { text-decoration: underline; }
+        .question-meta { font-size: 0.9em; color: #666; margin-top: 5px; }
+        .ask-button-container { margin-bottom: 20px; text-align: right; }
+        .pagination { margin-top: 20px; text-align: center; }
+        .pagination a { margin: 0 5px; padding: 8px 12px; text-decoration: none; color: #007bff; border: 1px solid #ddd; border-radius: 4px; }
+        .pagination a.active { background-color: #007bff; color: white; border-color: #007bff; }
+        .pagination a:hover:not(.active) { background-color: #f4f4f4; }
+        .flash-messages { list-style-type: none; padding: 0; margin-bottom: 15px; }
+        .flash-messages li { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .flash-messages li.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-messages li.danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-messages li.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .navbar-placeholder { background-color: #333; color: white; padding: 10px; margin-bottom:20px; text-align: center; }
+        .navbar-placeholder a { color: white; margin: 0 15px; text-decoration: none; }
+        .navbar-placeholder a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="navbar-placeholder">
+        <a href="{{ url_for('index') }}">Inicio (Chat)</a>
+        <a href="{{ url_for('forum.list_questions') }}">Foro</a>
+        {% if session.user_id %}
+            <a href="{{ url_for('auth.logout') }}">Cerrar Sesión ({{ session.username }})</a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}">Iniciar Sesión</a>
+        {% endif %}
+    </div>
+
+    <div class="forum-container">
+        <h2>Foro de Discusión</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <div class="ask-button-container">
+            <a href="{{ url_for('forum.ask_question') }}" class="button">Hacer una Pregunta</a>
+        </div>
+
+        {% if questions %}
+            {% for question in questions %}
+                <div class="question-item">
+                    <h3 class="question-title">
+                        <a href="{{ url_for('forum.view_question', question_id=question.id) }}">{{ question.title }}</a>
+                    </h3>
+                    <p class="question-meta">
+                        Preguntado por: {{ question.username }} el {{ question.created_at.strftime('%Y-%m-%d %H:%M') if question.created_at else 'Fecha desconocida' }}
+                    </p>
+                    <!-- Opcional: Mostrar un extracto del contenido -->
+                    <!-- <p>{{ question.content[:150] }}{{ '...' if question.content|length > 150 }}</p> -->
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No hay preguntas en el foro todavía. ¡Sé el primero en hacer una!</p>
+        {% endif %}
+
+        {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if current_page > 1 %}
+                    <a href="{{ url_for('forum.list_questions', page=current_page-1) }}">&laquo; Anterior</a>
+                {% endif %}
+
+                {% for page_num in range(1, total_pages + 1) %}
+                    {% if page_num == current_page %}
+                        <a href="#" class="active">{{ page_num }}</a>
+                    {% else %}
+                        <a href="{{ url_for('forum.list_questions', page=page_num) }}">{{ page_num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if current_page < total_pages %}
+                    <a href="{{ url_for('forum.list_questions', page=current_page+1) }}">Siguiente &raquo;</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,73 +1,94 @@
-from flask import Flask, render_template, request, session
-from flask_socketio import SocketIO, emit, join_room, leave_room
-import os
-import secrets
+from flask import (
+    Flask, session, redirect, url_for, render_template, request, flash
+)
+from flask_bcrypt import Bcrypt
+from flask_socketio import SocketIO
+import click # For CLI commands
+
+from config import Config
+from utils import database
+from utils.decorators import login_required # Decorator for login
+from utils.auth_helpers import hash_password # For hashing password in CLI
+from models.user import User # For User model in CLI
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = secrets.token_hex(16)
+app.config.from_object(Config)
+
+bcrypt = Bcrypt(app)
+database.init_app(app) # Configura el teardown de la BD y puede inicializar MySQL
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Almacenamiento en memoria para usuarios conectados y mensajes
-usuarios_conectados = {}
-mensajes = []
+# --- Blueprints ---
+from routes.auth import auth_bp
+app.register_blueprint(auth_bp, url_prefix='/auth')
 
+from routes.chat import chat_bp, register_chat_event_handlers # Importar la función de registro
+app.register_blueprint(chat_bp, url_prefix='/chat') # Registrarlo
+
+from routes.forum import forum_bp # Importar el blueprint del foro
+app.register_blueprint(forum_bp, url_prefix='/forum') # Registrarlo
+
+# Registrar manejadores de eventos SocketIO del chat
+register_chat_event_handlers(socketio)
+
+# --- Main Routes ---
 @app.route('/')
-def home():
-    return render_template('home.html')
+def index():
+    if 'user_id' in session:
+        # Si el usuario está en sesión, redirige a la página principal del chat blueprint
+        return redirect(url_for('chat.index'))
+    # Si no, redirige a la página de login del blueprint de autenticación
+    return redirect(url_for('auth.login'))
 
-@socketio.on('connect')
-def handle_connect():
-    print('Cliente conectado:', request.sid)
+# La ruta '/main_chat_placeholder' ha sido eliminada ya que su funcionalidad
+# es ahora manejada por la ruta '/' del chat_bp.
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Cliente desconectado:', request.sid)
-    # Eliminar usuario de la lista de conectados
-    user_id = None
-    for uid, sid in usuarios_conectados.items():
-        if sid == request.sid:
-            user_id = uid
-            break
-    
-    if user_id:
-        del usuarios_conectados[user_id]
-        emit('usuario_desconectado', {'usuario': user_id}, broadcast=True)
-        emit('lista_usuarios', list(usuarios_conectados.keys()), broadcast=True)
+# --- CLI Commands ---
+@app.cli.command("create-admin")
+@click.argument("username", default="62528438")
+@click.argument("password", default="2023107007")
+def create_admin_command(username, password):
+    """Crea o actualiza un usuario administrador."""
+    with app.app_context():
+        try:
+            hashed_pwd = hash_password(password)
 
-@socketio.on('unirse_chat')
-def handle_join(data):
-    username = data.get('username')
-    if username and username not in usuarios_conectados:
-        # Guardar el usuario con su ID de sesión
-        usuarios_conectados[username] = request.sid
-        # Notificar a todos los usuarios sobre el nuevo usuario
-        emit('usuario_conectado', {'usuario': username}, broadcast=True)
-        # Enviar la lista actualizada de usuarios
-        emit('lista_usuarios', list(usuarios_conectados.keys()), broadcast=True)
-        # Enviar historial de mensajes al nuevo usuario
-        emit('historial_mensajes', mensajes)
-    else:
-        # Notificar al usuario que el nombre ya está en uso
-        emit('error_nombre', {'mensaje': 'Este nombre de usuario ya está en uso'})
+            # Usar el método estático de la clase User para obtener la conexión a la BD
+            # Esto asume que get_db() y las operaciones del cursor están manejadas dentro de los métodos de User
+            # o que necesitamos obtener la db y cursor aquí si User.update no existe.
 
-@socketio.on('enviar_mensaje')
-def handle_message(data):
-    username = data.get('username')
-    mensaje = data.get('mensaje')
-    
-    if username and mensaje and username in usuarios_conectados:
-        # Crear objeto de mensaje
-        msg = {
-            'usuario': username,
-            'mensaje': mensaje
-        }
-        # Guardar mensaje en el historial
-        mensajes.append(msg)
-        # Mantener solo los últimos 100 mensajes
-        if len(mensajes) > 100:
-            mensajes.pop(0)
-        # Enviar mensaje a todos los usuarios
-        emit('nuevo_mensaje', msg, broadcast=True)
+            db = database.get_db() # Obtener la conexión a la BD
+            cursor = db.cursor()
+
+            user = User.find_by_username(username)
+
+            if user:
+                # Si el usuario existe, actualizar contraseña y rol
+                # Asumiendo que 'user' es un diccionario (DictCursor)
+                cursor.execute(
+                    "UPDATE users SET password = %s, role = %s WHERE id = %s",
+                    (hashed_pwd, 'admin', user['id'])
+                )
+                db.commit()
+                click.echo(f"Usuario '{username}' actualizado a rol 'admin' y contraseña actualizada.")
+            else:
+                # Si el usuario no existe, crearlo
+                User.create_user(username, hashed_pwd, 'admin')
+                # User.create_user ya hace commit, así que no es necesario aquí.
+                click.echo(f"Usuario administrador '{username}' creado exitosamente.")
+
+        except ValueError as ve: # Capturar error de usuario duplicado de User.create_user
+             click.echo(f"Error: {ve}")
+        except Exception as e:
+            # database.get_db().rollback() # Asegurar rollback en caso de otros errores
+            click.echo(f"Error al crear/actualizar administrador: {e}")
+            # Considerar loggear el error completo para depuración
+            # current_app.logger.error(f"Error en create-admin: {e}")
+
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    # Para desarrollo, debug=True es útil.
+    # use_reloader=True es el default y ayuda con el desarrollo.
+    # allow_unsafe_werkzeug=True puede ser necesario para algunos entornos de desarrollo,
+    # especialmente si se usa el reloader con ciertos tipos de errores.
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=True, allow_unsafe_werkzeug=True)

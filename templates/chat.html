@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Global - Mi Aplicación de Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Incluir Socket.IO JS Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }
+        .chat-container { max-width: 800px; margin: 20px auto; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: calc(100vh - 40px); }
+        header { background: #007bff; color: white; padding: 15px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;}
+        header h1 { margin: 0; font-size: 1.5em; }
+        .chat-box { flex-grow: 1; padding: 15px; overflow-y: auto; border-bottom: 1px solid #eee; }
+        .message { margin-bottom: 15px; padding: 10px; border-radius: 5px; line-height: 1.4; }
+        .message.mine { background-color: #dcf8c6; margin-left: auto; max-width: 70%; text-align: right; }
+        .message.theirs { background-color: #f1f0f0; margin-right: auto; max-width: 70%; text-align: left; }
+        .message .username { font-weight: bold; font-size: 0.9em; margin-bottom: 3px; color: #555; }
+        .message .content { font-size: 1em; }
+        .status-message { text-align: center; font-style: italic; color: #888; font-size: 0.9em; margin-bottom: 10px; }
+        .input-area { display: flex; padding: 15px; border-top: 1px solid #eee; background: #f9f9f9; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;}
+        .input-area input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; margin-right: 10px; }
+        .input-area button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 20px; cursor: pointer; }
+        .input-area button:hover { background-color: #0056b3; }
+        #notifications { text-align: center; padding: 5px; background-color: #ffc107; color: #333; font-size: 0.9em; display: none; }
+        .logout-link { display: block; text-align: center; padding: 10px; background: #6c757d; color: white; text-decoration: none; font-size: 0.9em; }
+        .logout-link:hover { background: #5a6268; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <header>
+            <h1>Chat Global</h1>
+            <p>Bienvenido, <strong id="session-username">{{ username }}</strong>!</p>
+        </header>
+
+        <div id="notifications"></div>
+
+        <div class="chat-box" id="chat-box">
+            <!-- Los mensajes del chat se añadirán aquí -->
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="message-input" placeholder="Escribe tu mensaje aquí...">
+            <button id="send-button">Enviar</button>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="logout-link">Cerrar Sesión</a>
+    </div>
+
+    <script>
+        // Conectar al namespace /chat de Socket.IO
+        // Asegurarse que la URL es correcta si la app no está en el root del dominio.
+        const socket = io('/chat');
+        const username = document.getElementById('session-username').textContent;
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const notifications = document.getElementById('notifications');
+
+        function showNotification(message, type = 'info') {
+            notifications.textContent = message;
+            notifications.style.backgroundColor = type === 'error' ? '#f8d7da' : '#ffc107';
+            notifications.style.color = type === 'error' ? '#721c24' : '#333';
+            notifications.style.display = 'block';
+            setTimeout(() => {
+                notifications.style.display = 'none';
+            }, 3000);
+        }
+
+        function addMessageToChat(msgData, isStatus = false) {
+            const msgElement = document.createElement('div');
+            if (isStatus) {
+                msgElement.classList.add('status-message');
+                msgElement.textContent = msgData.message;
+            } else {
+                msgElement.classList.add('message');
+                msgElement.classList.add(msgData.username === username ? 'mine' : 'theirs');
+
+                const userElement = document.createElement('div');
+                userElement.classList.add('username');
+                userElement.textContent = msgData.username;
+
+                const contentElement = document.createElement('div');
+                contentElement.classList.add('content');
+                contentElement.textContent = msgData.message;
+
+                msgElement.appendChild(userElement);
+                msgElement.appendChild(contentElement);
+            }
+            chatBox.appendChild(msgElement);
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+        }
+
+        // --- Manejadores de eventos del cliente Socket.IO ---
+
+        socket.on('connect', () => {
+            console.log('Conectado al servidor de Socket.IO en namespace /chat');
+            // No es necesario emitir 'user_joined' desde aquí si handle_chat_connect lo hace en el servidor.
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Desconectado del servidor de Socket.IO');
+            showNotification('Desconectado del chat. Intentando reconectar...', 'error');
+        });
+
+        socket.on('status', (data) => {
+            console.log('Status:', data.message);
+            addMessageToChat(data, true); // Mensaje de estado
+        });
+
+        socket.on('user_joined', (data) => {
+            console.log('Usuario unido:', data.username);
+            if (data.username !== username) { // No mostrar para uno mismo
+                addMessageToChat({ message: `${data.username} se ha unido al chat.` }, true);
+            }
+        });
+
+        socket.on('user_left', (data) => {
+            console.log('Usuario se fue:', data.username);
+             addMessageToChat({ message: `${data.username} ha dejado el chat.` }, true);
+        });
+
+        socket.on('new_global_message', (data) => {
+            console.log('Mensaje global recibido:', data);
+            addMessageToChat(data);
+        });
+
+        socket.on('error', (data) => {
+            console.error('Error del servidor:', data.message);
+            showNotification(`Error: ${data.message}`, 'error');
+        });
+
+        socket.on('load_old_messages', (data) => {
+            console.log('Cargando mensajes antiguos:', data.messages);
+            // Limpiar mensajes existentes si se recargan o añadir al principio
+            // chatBox.innerHTML = ''; // Opcional: limpiar antes de cargar los viejos
+            const fragment = document.createDocumentFragment();
+            data.messages.forEach(msgData => {
+                const msgElement = document.createElement('div');
+                msgElement.classList.add('message');
+                // Determinar si el mensaje es 'mine' o 'theirs'
+                msgElement.classList.add(msgData.username === username ? 'mine' : 'theirs');
+
+                const userElement = document.createElement('div');
+                userElement.classList.add('username');
+                userElement.textContent = msgData.username; // Asumiendo que 'username' viene en msgData
+
+                const contentElement = document.createElement('div');
+                contentElement.classList.add('content');
+                contentElement.textContent = msgData.message; // Asumiendo que 'message' viene en msgData
+
+                // Añadir timestamp si está disponible y formateado
+                if (msgData.created_at) {
+                    const timeElement = document.createElement('div');
+                    timeElement.style.fontSize = '0.75em';
+                    timeElement.style.color = '#999';
+                    // Formatear la fecha/hora como se prefiera. Ejemplo simple:
+                    timeElement.textContent = new Date(msgData.created_at).toLocaleString();
+                    contentElement.appendChild(timeElement);
+                }
+
+                msgElement.appendChild(userElement);
+                msgElement.appendChild(contentElement);
+                fragment.appendChild(msgElement);
+            });
+            chatBox.prepend(fragment); // Añadir todos los mensajes antiguos al principio
+            // No hacer scroll automático aquí para que el usuario pueda ver los mensajes más antiguos primero si lo desea.
+            // Si se prefiere scroll al fondo después de cargar viejos mensajes:
+            // chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        // --- Enviar mensajes ---
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                socket.emit('send_global_message', { message: message });
+                messageInput.value = '';
+            }
+        });
+
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+        // (Opcional) Cargar mensajes antiguos al conectarse o al hacer scroll hacia arriba
+        // socket.emit('request_old_global_messages', { 'limit': 20 });
+        // socket.on('old_global_messages', (data) => {
+        //     data.messages.forEach(msg => addMessageToChat(msg, false));
+        // });
+
+    </script>
+</body>
+</html>
