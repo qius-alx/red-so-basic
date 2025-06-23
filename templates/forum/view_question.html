@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ question.title if question else 'Pregunta no Encontrada' }} - Foro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .forum-container { max-width: 900px; margin: 20px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .question-detail h2 { color: #333; margin-bottom: 10px; }
+        .question-meta, .answer-meta { font-size: 0.9em; color: #666; margin-bottom: 15px; }
+        .question-content, .answer-content { margin-bottom: 20px; line-height: 1.6; white-space: pre-wrap; /* Para conservar saltos de línea y espacios */ }
+        .answers-section { margin-top: 30px; }
+        .answers-section h3 { margin-bottom: 15px; color: #444; }
+        .answer-item { border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 5px; background: #f9f9f9; }
+        .no-answers { color: #777; }
+        .answer-form { margin-top: 20px; }
+        .answer-form textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; box-sizing: border-box; }
+        .answer-form button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .answer-form button:hover { background-color: #0056b3; }
+        .flash-messages { list-style-type: none; padding: 0; margin-bottom: 15px; }
+        .flash-messages li { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .flash-messages li.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-messages li.danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-messages li.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .navbar-placeholder { background-color: #333; color: white; padding: 10px; margin-bottom:20px; text-align: center; }
+        .navbar-placeholder a { color: white; margin: 0 15px; text-decoration: none; }
+        .navbar-placeholder a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="navbar-placeholder">
+        <a href="{{ url_for('index') }}">Inicio (Chat)</a>
+        <a href="{{ url_for('forum.list_questions') }}">Foro</a>
+        {% if session.user_id %}
+            <a href="{{ url_for('auth.logout') }}">Cerrar Sesión ({{ session.username }})</a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}">Iniciar Sesión</a>
+        {% endif %}
+    </div>
+
+    <div class="forum-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <a href="{{ url_for('forum.list_questions') }}" class="back-link">&laquo; Volver a todas las preguntas</a>
+
+        {% if question %}
+            <div class="question-detail">
+                <h2>{{ question.title }}</h2>
+                <p class="question-meta">
+                    Preguntado por: {{ question.username }} el {{ question.created_at.strftime('%Y-%m-%d %H:%M') if question.created_at else 'Fecha desconocida' }}
+                </p>
+                <div class="question-content">
+                    {{ question.content }}
+                </div>
+            </div>
+
+            <div class="answers-section">
+                <h3>Respuestas</h3>
+                {% if answers %}
+                    {% for answer in answers %}
+                        <div class="answer-item">
+                            <p class="answer-meta">
+                                Respondido por: {{ answer.username }} el {{ answer.created_at.strftime('%Y-%m-%d %H:%M') if answer.created_at else 'Fecha desconocida' }}
+                            </p>
+                            <div class="answer-content">
+                                {{ answer.content }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="no-answers">Todavía no hay respuestas para esta pregunta. ¡Sé el primero en responder!</p>
+                {% endif %}
+            </div>
+
+            <div class="answer-form">
+                <h3>Tu Respuesta</h3>
+                <form method="POST" action="{{ url_for('forum.post_answer', question_id=question.id) }}">
+                    <div>
+                        <textarea name="content" required placeholder="Escribe tu respuesta aquí..."></textarea>
+                    </div>
+                    <div>
+                        <button type="submit">Publicar Respuesta</button>
+                    </div>
+                </form>
+            </div>
+        {% else %}
+            <p>La pregunta que buscas no se encontró o no está disponible.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
