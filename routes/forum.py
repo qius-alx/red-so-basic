@@ -3,6 +3,7 @@ from flask import (
 )
 from utils.decorators import login_required
 from models.forum import Question, Answer
+from models.activity_log import ActivityLog # Para registrar actividad
 from math import ceil # Para la paginación
 
 forum_bp = Blueprint('forum', __name__, url_prefix='/forum')
@@ -76,6 +77,9 @@ def ask_question():
         try:
             question_id = Question.create(user_id, title, content)
             if question_id:
+                ActivityLog.log_forum_activity(user_id=user_id, action_type='create_question',
+                                               item_id=question_id, ip_address=request.remote_addr)
+                current_app.logger.info(f"Pregunta (ID: {question_id}) creada por usuario {user_id} y loggeada.")
                 flash('Tu pregunta ha sido publicada.', 'success')
                 return redirect(url_for('forum.view_question', question_id=question_id))
             else:
@@ -116,6 +120,9 @@ def post_answer(question_id):
     try:
         answer_id = Answer.create(question_id, user_id, content)
         if answer_id:
+            ActivityLog.log_forum_activity(user_id=user_id, action_type='create_answer',
+                                           item_id=answer_id, ip_address=request.remote_addr) # item_id es answer_id
+            current_app.logger.info(f"Respuesta (ID: {answer_id}) creada por usuario {user_id} para pregunta {question_id} y loggeada.")
             flash('Tu respuesta ha sido publicada.', 'success')
         else:
             flash('Hubo un error al publicar tu respuesta.', 'danger')

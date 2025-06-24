@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Usuario - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+        .admin-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #333; color: white; padding-top: 20px; }
+        .sidebar h2 { text-align: center; margin-bottom: 20px; font-size: 1.5em; }
+        .sidebar ul { list-style-type: none; padding: 0; }
+        .sidebar ul li a { display: block; color: white; padding: 15px 20px; text-decoration: none; border-bottom: 1px solid #444; }
+        .sidebar ul li a:hover, .sidebar ul li a.active { background-color: #575757; }
+        .main-content { flex-grow: 1; padding: 20px; }
+        .header { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 1.8em; }
+        .content-area { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-edit-user { max-width: 600px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group small { display: block; color: #777; font-size: 0.85em; margin-top: 3px; }
+        .form-actions button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .form-actions button:hover { background-color: #0056b3; }
+        .form-actions a { padding: 10px 15px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
+        .form-actions a:hover { background-color: #5a6268; }
+        .flash-messages { list-style-type: none; padding: 0; margin-bottom: 15px; }
+        .flash-messages li { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .flash-messages li.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-messages li.danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-messages li.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <aside class="sidebar">
+            <h2>Admin Panel</h2>
+            <ul>
+                <li><a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if request.endpoint == 'admin.dashboard' else '' }}">Dashboard</a></li>
+                <li><a href="{{ url_for('admin.list_users') }}" class="{{ 'active' if request.endpoint == 'admin.list_users' or request.endpoint == 'admin.edit_user' else '' }}">Gestionar Usuarios</a></li>
+                <li><a href="{{ url_for('index') }}">Volver al Sitio Principal</a></li>
+                <li><a href="{{ url_for('auth.logout') }}">Cerrar Sesión</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header">
+                <h1>Editar Usuario: {{ user.user if user else 'Desconocido' }}</h1>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+
+            <div class="content-area">
+                {% if user %}
+                <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}" class="form-edit-user">
+                    <div class="form-group">
+                        <label for="username">Nombre de Usuario:</label>
+                        <input type="text" id="username" name="username" value="{{ user.user }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Nueva Contraseña:</label>
+                        <input type="password" id="password" name="password">
+                        <small>Dejar en blanco para no cambiar la contraseña actual.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="role">Rol:</label>
+                        <select id="role" name="role" required>
+                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>Usuario</option>
+                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrador</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit">Guardar Cambios</button>
+                        <a href="{{ url_for('admin.list_users') }}">Cancelar</a>
+                    </div>
+                </form>
+                {% else %}
+                <p>No se pudo cargar la información del usuario para editar.</p>
+                <a href="{{ url_for('admin.list_users') }}">Volver a la lista de usuarios</a>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>

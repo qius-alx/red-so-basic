@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Logs de Actividad - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+        .admin-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #333; color: white; padding-top: 20px; }
+        .sidebar h2 { text-align: center; margin-bottom: 20px; font-size: 1.5em; }
+        .sidebar ul { list-style-type: none; padding: 0; }
+        .sidebar ul li a { display: block; color: white; padding: 15px 20px; text-decoration: none; border-bottom: 1px solid #444; }
+        .sidebar ul li a:hover, .sidebar ul li a.active { background-color: #575757; }
+        .main-content { flex-grow: 1; padding: 20px; }
+        .header { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 1.8em; }
+        .content-area { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .logs-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .logs-table th, .logs-table td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 0.9em; }
+        .logs-table th { background-color: #f0f0f0; }
+        .logs-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .logs-table td pre { white-space: pre-wrap; word-wrap: break-word; max-height: 100px; overflow-y: auto; background: #efefef; padding: 5px; border-radius: 3px;}
+        .filter-form { margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; display: flex; gap: 15px; align-items: center; }
+        .filter-form input[type="text"], .filter-form input[type="number"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .filter-form button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .pagination { margin-top: 20px; text-align: center; }
+        .pagination a { margin: 0 5px; padding: 8px 12px; text-decoration: none; color: #007bff; border: 1px solid #ddd; border-radius: 4px; }
+        .pagination a.active { background-color: #007bff; color: white; border-color: #007bff; }
+        .pagination a:hover:not(.active) { background-color: #f4f4f4; }
+        .flash-messages { list-style-type: none; padding: 0; margin-bottom: 15px; }
+        .flash-messages li { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .flash-messages li.danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <aside class="sidebar">
+            <h2>Admin Panel</h2>
+            <ul>
+                <li><a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if request.endpoint == 'admin.dashboard' else '' }}">Dashboard</a></li>
+                <li><a href="{{ url_for('admin.list_users') }}" class="{{ 'active' if request.endpoint == 'admin.list_users' else '' }}">Gestionar Usuarios</a></li>
+                <li><a href="{{ url_for('admin.view_activity_logs') }}" class="{{ 'active' if request.endpoint == 'admin.view_activity_logs' else '' }}">Logs de Actividad</a></li>
+                <li><a href="{{ url_for('index') }}">Volver al Sitio Principal</a></li>
+                <li><a href="{{ url_for('auth.logout') }}">Cerrar Sesión</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header">
+                <h1>Logs de Actividad del Sistema</h1>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+
+            <div class="content-area">
+                <form method="GET" action="{{ url_for('admin.view_activity_logs') }}" class="filter-form">
+                    <div>
+                        <label for="user_id_filter">ID Usuario:</label>
+                        <input type="number" name="user_id" id="user_id_filter" value="{{ user_id_filter or '' }}" placeholder="Filtrar por ID Usuario">
+                    </div>
+                    <div>
+                        <label for="action_filter">Acción:</label>
+                        <input type="text" name="action" id="action_filter" value="{{ action_filter or '' }}" placeholder="Filtrar por acción (ej: login)">
+                    </div>
+                    <button type="submit">Filtrar</button>
+                    <a href="{{ url_for('admin.view_activity_logs') }}">Limpiar Filtros</a>
+                </form>
+
+                {% if logs %}
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>ID Log</th>
+                                <th>Usuario (ID)</th>
+                                <th>Acción</th>
+                                <th>Detalles</th>
+                                <th>IP</th>
+                                <th>Fecha y Hora (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log_entry in logs %}
+                            <tr>
+                                <td>{{ log_entry.id }}</td>
+                                <td>
+                                    {% if log_entry.user_id %}
+                                        {{ log_entry.username or 'Usuario Desconocido' }} ({{ log_entry.user_id }})
+                                    {% else %}
+                                        Sistema
+                                    {% endif %}
+                                </td>
+                                <td>{{ log_entry.action }}</td>
+                                <td>
+                                    {% if log_entry.details %}
+                                        <pre>{{ log_entry.details | tojson(indent=2) }}</pre>
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                <td>{{ log_entry.ip_address or 'N/A' }}</td>
+                                <td>{{ log_entry.created_at.strftime('%Y-%m-%d %H:%M:%S') if log_entry.created_at else 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    {% if total_pages > 1 %}
+                    <div class="pagination">
+                        {% set route_args = request.args.to_dict() %}
+                        {% if current_page > 1 %}
+                            <a href="{{ url_for('admin.view_activity_logs', **route_args, page=current_page-1) }}">&laquo; Anterior</a>
+                        {% endif %}
+                        {% for page_num in range(1, total_pages + 1) %}
+                            {% if page_num == current_page %}
+                                <a href="#" class="active">{{ page_num }}</a>
+                            {% else %}
+                                <a href="{{ url_for('admin.view_activity_logs', **route_args, page=page_num) }}">{{ page_num }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if current_page < total_pages %}
+                            <a href="{{ url_for('admin.view_activity_logs', **route_args, page=current_page+1) }}">Siguiente &raquo;</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <p>No hay logs de actividad que coincidan con los filtros aplicados, o no hay logs en el sistema.</p>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{# Este template se carga dinámicamente en el sidebar de chat.html #}
+{% if chat_users %}
+    <ul id="user-list-items"> {# Añadido ID para facilitar la manipulación si es necesario #}
+        {% for user_item in chat_users %}
+            <li class="user-list-item" data-userid="{{ user_item.id }}" data-username="{{ user_item.user }}">
+                <span class="user-name">{{ user_item.user }}</span>
+                {# Mostrar contador de mensajes no leídos si es mayor que cero #}
+                {% if user_item.unread_count and user_item.unread_count > 0 %}
+                    <span class="unread-badge">{{ user_item.unread_count }}</span>
+                {% endif %}
+                {# El botón para chatear ya no es necesario aquí si el <li> es clickeable #}
+                {# <button class="start-chat-btn" data-userid="{{ user_item.id }}" data-username="{{ user_item.user }}">Chatear</button> #}
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="no-users-available">No hay otros usuarios para chatear.</p>
+{% endif %}
+
+<style>
+    /* Estilos para chat_users_list_panel.html - pueden moverse a un CSS global */
+    #user-list-items {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .user-list-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #f0f0f0; /* Ligeramente más claro */
+        cursor: pointer;
+        display: flex; /* Para alinear nombre y badge */
+        justify-content: space-between; /* Para separar nombre y badge */
+        align-items: center;
+        transition: background-color 0.2s ease;
+    }
+    .user-list-item:hover {
+        background-color: #e9ecef; /* Un gris muy claro para hover */
+    }
+    .user-list-item.active-chat { /* Para el usuario con el que se está chateando */
+        background-color: #007bff;
+        color: white;
+    }
+    .user-list-item.active-chat .user-name {
+        font-weight: bold;
+    }
+    .user-list-item.active-chat .unread-badge { /* Ocultar o cambiar estilo del badge si el chat está activo */
+        /* display: none; */
+        background-color: #fff;
+        color: #007bff;
+    }
+    .user-name {
+        /* Estilos para el nombre del usuario si es necesario */
+    }
+    .unread-badge {
+        background-color: #dc3545; /* Rojo para notificaciones */
+        color: white;
+        padding: 2px 6px;
+        font-size: 0.75em;
+        border-radius: 8px; /* Más redondeado */
+        margin-left: 8px;
+        font-weight: bold;
+    }
+    .no-users-available {
+        padding: 15px;
+        text-align: center;
+        color: #6c757d;
+    }
+</style>
