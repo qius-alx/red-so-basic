@@ -1,4 +1,4 @@
-# Sistema de Chat Avanzado - Universidad Nacional de Juliaca
+# Sistema de Chat Avanzado
 
 ## Carrera: Ingeniería de Software y Sistemas
 
