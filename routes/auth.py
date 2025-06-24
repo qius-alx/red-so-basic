@@ -3,6 +3,7 @@ from models.user import User # Para buscar usuarios
 from utils.auth_helpers import check_password # Para verificar contraseñas
 from utils.database import get_db # Para la conexión directa a BD para last_login
 from datetime import datetime # Para actualizar last_login
+from models.activity_log import ActivityLog # Para registrar actividad
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -46,10 +47,18 @@ def login():
                     # Notificar al usuario puede ser opcional o un mensaje discreto
                     flash('Hubo un problema al registrar tu hora de conexión, pero estás logueado.', 'warning')
 
+                # Registrar el login en el log de actividad
+                ActivityLog.log_user_login(user_id=user_data['id'], ip_address=request.remote_addr)
+                current_app.logger.info(f"Login exitoso para usuario '{username}' desde IP {request.remote_addr}. Logged.")
+
+
                 flash('Inicio de sesión exitoso.', 'success')
                 return redirect(url_for('index')) # Redirigir a la página principal
             else:
                 # Contraseña incorrecta
+                # Registrar intento de login fallido (opcional, podría generar muchos logs)
+                # ActivityLog.create_log(user_id=None, action='login_failed', details={'username': username}, ip_address=request.remote_addr)
+                # current_app.logger.warn(f"Intento de login fallido para usuario '{username}' desde IP {request.remote_addr}.")
                 flash('Nombre de usuario o contraseña incorrectos.', 'danger')
         else:
             # Usuario no encontrado
@@ -60,6 +69,14 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
+    user_id_for_log = session.get('user_id') # Obtener user_id ANTES de limpiar la sesión
+    username_for_log = session.get('username', 'Desconocido') # Obtener username para log
+
     session.clear() # Limpiar todos los datos de la sesión
+
+    if user_id_for_log:
+        ActivityLog.log_user_logout(user_id=user_id_for_log, ip_address=request.remote_addr)
+        current_app.logger.info(f"Logout para usuario ID {user_id_for_log} ('{username_for_log}'). Logged.")
+
     flash('Has cerrado sesión exitosamente.', 'info')
     return redirect(url_for('auth.login')) # Redirigir a la página de login

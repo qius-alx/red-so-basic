@@ -28,6 +28,9 @@ app.register_blueprint(chat_bp, url_prefix='/chat') # Registrarlo
 from routes.forum import forum_bp # Importar el blueprint del foro
 app.register_blueprint(forum_bp, url_prefix='/forum') # Registrarlo
 
+from routes.admin import admin_bp # Importar el blueprint de administración
+app.register_blueprint(admin_bp, url_prefix='/admin') # Registrarlo
+
 # Registrar manejadores de eventos SocketIO del chat
 register_chat_event_handlers(socketio)
 
